@@ -25,6 +25,7 @@ html,body{background:var(--bg);color:var(--ink)}
 body{margin:0;font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 button,input,select{font:inherit;color:inherit}
+button,a,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -238,8 +239,9 @@ a{color:inherit}
 .loading .eq{color:var(--amber);height:1.4rem}
 
 /* watch page */
-.watch{position:fixed;inset:0;z-index:20;overflow:auto;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-.wtop{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:.9rem;padding-block:.6rem;background:rgba(9,9,11,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.watch{position:relative;min-height:100dvh;background:var(--bg);padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 1.5rem)}
+html.watching .app,html.watching .nowbar{display:none!important}
+.wtop{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;display:flex;align-items:center;gap:.9rem;padding-block:.6rem;background:rgba(9,9,11,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .back{display:inline-flex;align-items:center;gap:.3rem;min-height:50px;padding:0 1.1rem 0 .7rem;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:800;font-size:1.02rem;cursor:pointer}
 .wtop .logo{margin:0;font-size:1.25rem;cursor:default}
 .wgrid{max-width:1320px;margin:0 auto;display:grid;gap:1.8rem;padding-block:.5rem 3rem}
@@ -332,7 +334,7 @@ legend{font-weight:800;margin-bottom:.4rem}
   <button type="button" data-help><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3M12 17h.01"/></svg>Help</button>
   <button type="button" data-add id="tabAdd"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add</button>
 </nav>
-<div class="watch" id="watch" role="dialog" aria-modal="true" aria-label="Show" hidden></div>
+<main class="watch" id="watch" aria-label="Show" hidden></main>
 <div class="scrim" id="scrim" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -516,15 +518,20 @@ function watchHTML(r){const g=G[r.genre]||G.rock,s=srcOf(r),canDel=!STATIC&&!!db
     ${canDel?`<button class="lnk" type="button" data-del="${esc(r.id)}">Remove from the hall</button>`:""}
   </div>
   <aside class="upnext" aria-label="Up next"><h2>Up next</h2>${next.map(x=>`<button class="unrow" type="button" data-id="${esc(x.id)}"><span class="unthumb">${art(x,"sm")}${x.dur?`<span class="dur">${esc(x.dur)}</span>`:""}</span><span><b>${esc(x.artist)}</b><small>${esc(x.title)}</small><small>${esc(SRC[srcOf(x)])}</small></span></button>`).join("")}</aside></div>`}
-function openWatch(id,auto){const r=rows.find(x=>x.id===id);if(!r)return;const w=$("watch");
-  if(w.hidden)lastFocus=document.activeElement;armDel=false;nowLive=false;
-  w.innerHTML=watchHTML(r);w.hidden=false;document.body.style.overflow="hidden";w.scrollTop=0;
+let savedY=0;
+function openWatch(id,auto){const r=rows.find(x=>x.id===id);if(!r)return;const w=$("watch"),first=w.hidden;
+  if(first){lastFocus=document.activeElement;savedY=window.scrollY}armDel=false;nowLive=false;
+  try{if(first)history.pushState({watch:id},"");else history.replaceState({watch:id},"")}catch{}
+  w.innerHTML=watchHTML(r);w.hidden=false;document.documentElement.classList.add("watching");window.scrollTo(0,0);
   if(auto&&STATIC)embed(id);else w.querySelector(".back").focus({preventScroll:true})}
 function embed(id){const r=rows.find(x=>x.id===id),pb=document.querySelector("#watch .pbox");if(!r||!pb)return;
   pb.innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.vid)}?autoplay=1&rel=0&playsinline=1" title="${esc(r.artist+": "+r.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   markPlayed(id,true);const e=document.querySelector("#watch .wtop .eq");if(e)e.classList.add("live")}
-function closeWatch(skip){const w=$("watch");if(w.hidden)return;w.hidden=true;w.innerHTML="";document.body.style.overflow="";nowLive=false;
-  if(!skip){render();if(lastFocus&&document.contains(lastFocus))lastFocus.focus();}}
+function closeWatch(skip){const w=$("watch");if(w.hidden)return;w.hidden=true;w.innerHTML="";document.documentElement.classList.remove("watching");nowLive=false;
+  if(skip){try{if(history.state&&history.state.watch)history.replaceState(null,"")}catch{}}
+  if(!skip){render();window.scrollTo(0,savedY);if(lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true});}}
+function leaveWatch(){if(history.state&&history.state.watch){history.back()}else closeWatch()}
+addEventListener("popstate",()=>{if(!$("watch").hidden)closeWatch()});
 
 /* sheets */
 function openSheet(html,label){$("scrim").innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}"><button class="close" type="button" data-close>✕ Close</button>${html}</div>`;$("scrim").hidden=false;setTimeout(()=>$("scrim").querySelector(".close")?.focus(),30)}
@@ -564,7 +571,7 @@ document.addEventListener("click",async e=>{const t=e.target,q=s=>t.closest(s);l
   if(el=q("[data-watch]")){markPlayed(el.dataset.watch,false);return}
   if(el=q("[data-playnow]")){openWatch(el.dataset.playnow,true);return}
   if(el=q("[data-embed]")){embed(el.dataset.embed);return}
-  if(q("[data-closewatch]")){closeWatch();return}
+  if(q("[data-closewatch]")){leaveWatch();return}
   if(el=q("[data-seen]")){const id=el.dataset.seen;seen.has(id)?seen.delete(id):seen.add(id);ls.set("mch.seen",[...seen]);el.classList.toggle("on",seen.has(id));el.textContent=seen.has(id)?"✓ Watched":"Mark as watched";return}
   if(el=q("[data-copy]")){const r=rows.find(x=>x.id===el.dataset.copy);const u=ytUrl(r);try{await navigator.clipboard.writeText(u);toast("Link copied. Paste it in a text or email.")}catch{toast("Here's the link: "+u)}return}
   if(el=q("[data-del]")){if(!armDel){armDel=true;el.textContent="Are you sure? Tap again to remove";el.classList.add("warn");return}
@@ -578,7 +585,7 @@ document.addEventListener("click",async e=>{const t=e.target,q=s=>t.closest(s);l
   if(q("[data-add]")){addSheet();return}
   if(q("[data-close]")||t===$("scrim")){closeSheet();return}
 });
-document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;if(!$("scrim").hidden)closeSheet();else if(!$("watch").hidden)closeWatch()});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;if(!$("scrim").hidden)closeSheet();else if(!$("watch").hidden)leaveWatch()});
 document.addEventListener("input",e=>{if(!e.target.classList?.contains("qinput"))return;term=e.target.value;document.querySelectorAll(".qinput").forEach(i=>{if(i!==e.target)i.value=term});
   if(view!=="search"){view="search";genre=null;render();e.target.focus()}else updateResults()});
 let rt,lastCols=cols();addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{const c=cols();if(c!==lastCols){lastCols=c;if(view==="home")render()}},150)});
