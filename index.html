@@ -1,0 +1,613 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="A family concert library: 87 full shows, all in 4K."></head><body style="margin:0"><title>Mills Concert Hall</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+/* Layout: Spotify-style shell (sidebar on desktop, bottom tabs + mini player on phones) holding YouTube-style video cards,
+   Spotify track lists for genres, and a YouTube watch page. Musical details: vinyl in a sleeve, equalizer bars, "Last played" bar.
+   Dark-only by choice: it's a screening room. Every control is at least 48px; text scales with the three A buttons. */
+:root{
+  --bg:#09090b; --panel:#121216; --card:#1b1b21; --card-h:#26262e; --line:rgba(255,255,255,.1);
+  --ink:#f6f4f1; --muted:#b7b4bf; --amber:#ffb547; --amber-ink:#1d1203; --ok:#8fe388; --warn:#ff9a8a;
+  --display:"Big Shoulders Display","Impact","Arial Narrow",sans-serif;
+  --body:"Figtree","Segoe UI",system-ui,sans-serif;
+  --tabh:0px; --nowh:0px;
+  color-scheme:dark; font-size:17px;
+}
+:root[data-size="2"]{font-size:19px}
+:root[data-size="3"]{font-size:21.5px}
+:root.hasnow{--nowh:4.9rem}
+@media (max-width:899px){:root{--tabh:calc(4.5rem + env(safe-area-inset-bottom,0px))}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+html,body{background:var(--bg);color:var(--ink)}
+body{margin:0;font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ico{width:1.45em;height:1.45em;flex:none;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.ico.fill{fill:currentColor;stroke:none}
+.pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:900px){.pad{padding-left:1.6rem;padding-right:max(1.6rem,env(safe-area-inset-right,0px))}}
+
+/* equalizer */
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:.95em;flex:none}
+.eq i{width:3px;height:100%;border-radius:1px;background:currentColor;transform-origin:bottom;transform:scaleY(.45)}
+.eq i:nth-child(2){transform:scaleY(.95)}.eq i:nth-child(3){transform:scaleY(.6)}.eq i:nth-child(4){transform:scaleY(.8)}
+@media (prefers-reduced-motion:no-preference){
+  .eq.live i{animation:eq .9s ease-in-out infinite alternate}
+  .eq.live i:nth-child(2){animation-duration:.62s}.eq.live i:nth-child(3){animation-duration:1.15s;animation-delay:-.4s}.eq.live i:nth-child(4){animation-duration:.8s;animation-delay:-.2s}
+  .vinyl.spin{animation:spin 5.5s linear infinite}
+}
+@keyframes eq{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+@keyframes spin{to{transform:rotate(1turn)}}
+
+/* vinyl */
+.vwrap{position:absolute;display:block}
+.vinyl{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle,#0a0a0a 0 2.6%,var(--lc,#f6f4f1) 2.9% 29%,#0a0a0a 29.5% 31%,transparent 31.5%),repeating-radial-gradient(circle,#111 0 1.4px,#1c1c1f 1.4px 2.8px);
+  box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 0 0 2px #26262a}
+.vinyl b{font-family:var(--display);font-weight:900;font-size:1.25rem;color:rgba(0,0,0,.62);transform:translateY(-1.05em);letter-spacing:.04em}
+.vwrap::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 30deg,transparent 0 9%,rgba(255,255,255,.14) 13%,transparent 19% 55%,rgba(255,255,255,.09) 60%,transparent 66%)}
+
+/* artwork layers */
+.art{position:absolute;inset:0;display:block;background:radial-gradient(120% 90% at var(--x,20%) -10%,var(--c1) 0%,transparent 55%),radial-gradient(90% 80% at 110% 110%,var(--c2) 0%,transparent 60%),linear-gradient(var(--a,135deg),#0c0b12,#17131f)}
+.art::before{content:"";position:absolute;inset:0;background:repeating-conic-gradient(from var(--r,200deg) at var(--x,20%) -20%,rgba(255,255,255,.08) 0deg 3deg,transparent 3deg 14deg);-webkit-mask-image:linear-gradient(180deg,#000,transparent 75%);mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.aname{position:absolute;left:.7rem;right:4.4rem;bottom:.55rem;font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:1.55rem;line-height:.92;text-shadow:0 2px 12px rgba(0,0,0,.5);overflow-wrap:anywhere}
+
+/* shell */
+.app{display:grid;grid-template-columns:minmax(0,1fr);min-height:100dvh}
+.side{display:none}
+.mainwrap{min-width:0;background:var(--panel)}
+@media (min-width:900px){
+  .app{grid-template-columns:16rem minmax(0,1fr)}
+  .side{display:flex;flex-direction:column;gap:.5rem;position:sticky;top:env(safe-area-inset-top,0px);height:calc(100dvh - env(safe-area-inset-top,0px) - var(--nowh) - env(safe-area-inset-bottom,0px));overflow:auto;padding:.5rem .5rem .5rem max(.5rem,env(safe-area-inset-left,0px))}
+  .mainwrap{margin:.5rem max(.5rem,env(safe-area-inset-right,0px)) 0 0;border-radius:12px 12px 0 0;overflow:clip}
+  .tabbar,.hide-d{display:none!important}
+}
+@media (max-width:899px){.hide-m{display:none!important}}
+.sbox{background:var(--panel);border-radius:12px;padding:.6rem;display:grid;gap:.15rem;align-content:start}
+.sbox.grow{flex:1}
+.slabel{font-weight:800;color:var(--muted);padding:.4rem .6rem;font-size:.9rem;letter-spacing:.04em;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:.85rem;min-height:50px;padding:0 .7rem;border-radius:8px;border:0;background:none;color:var(--muted);font-weight:800;font-size:1.02rem;cursor:pointer;width:100%;text-align:left}
+.nav:hover,.nav[aria-current="page"]{color:var(--ink)}
+.nav[aria-current="page"]{background:var(--card)}
+.sadd{margin-top:.4rem;display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:50px;border-radius:999px;border:0;background:var(--ink);color:#000;font-weight:800;cursor:pointer}
+.sgen{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:.75rem;align-items:center;width:100%;min-height:3.8rem;padding:.4rem;border:0;border-radius:8px;background:none;cursor:pointer;text-align:left}
+.sgen:hover{background:var(--card)}.sgen[aria-current="page"]{background:var(--card-h)}
+.sgen b{display:block;font-size:.95rem;line-height:1.2}.sgen small{display:block;font-size:.82rem;color:var(--muted)}
+.gcov{position:relative;display:block;width:3rem;height:3rem;border-radius:6px;overflow:hidden;background:linear-gradient(135deg,var(--h0),var(--h1))}
+.gcov .vwrap{width:72%;height:72%;right:-22%;bottom:-22%}
+.gcov .vinyl b{display:none}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;display:flex;align-items:center;gap:.7rem;padding-block:.65rem;background:rgba(18,18,22,.9);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.logo{display:flex;align-items:center;gap:.55rem;margin-right:auto;padding:.3rem 0;border:0;background:none;cursor:pointer;text-align:left;color:var(--ink);font-family:var(--display);font-weight:900;font-size:1.5rem;line-height:1;letter-spacing:.04em;text-transform:uppercase}
+.logo .eq{color:var(--amber);height:1.05em}
+.logo small{font-family:var(--body);font-weight:800;font-size:.68rem;letter-spacing:.1em;padding:.22rem .4rem;border-radius:5px;background:var(--amber);color:var(--amber-ink)}
+.side .logo{padding:.5rem .6rem .9rem;margin:0}
+.top .logo{display:flex;font-size:1.22rem;gap:.45rem;min-width:0}
+.top .logo small{display:none}
+@media (max-width:899px){.top{gap:.5rem}.sizer button{min-width:44px;padding:0 .4rem}}
+@media (min-width:900px){.top .logo{display:none}}
+.tsearch{position:relative;display:none;flex:0 1 30rem;margin-right:auto}
+@media (min-width:900px){.tsearch{display:block}}
+.tsearch input,.msearch input{width:100%;min-height:52px;border-radius:999px;border:1px solid var(--line);background:var(--card);padding:.6rem 1rem .6rem 3.1rem;font-size:1.05rem;font-weight:600}
+.tsearch input:focus,.msearch input:focus{outline:none;border-color:var(--ink);background:var(--card-h)}
+.tsearch .ico,.msearch .ico{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);width:1.25rem;height:1.25rem}
+.sizer{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none}
+.sizer button{min-height:48px;min-width:46px;border:0;background:var(--card);font-weight:800;cursor:pointer;padding:0 .55rem}
+.sizer button+button{border-left:1px solid var(--line)}
+.sizer button[aria-pressed="true"]{background:var(--ink);color:#000}
+.tbtn{min-height:48px;padding:0 1rem;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:.45rem}
+.tbtn:hover{background:var(--card-h)}
+
+/* tab bar + now playing */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:8;height:var(--tabh);display:flex;justify-content:space-around;align-items:stretch;padding:.3rem max(6px,env(safe-area-inset-right,0px)) calc(.3rem + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));background:rgba(9,9,11,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.tabbar button{flex:1;display:grid;place-items:center;align-content:center;gap:.1rem;border:0;background:none;color:var(--muted);font-weight:800;font-size:.8rem;cursor:pointer;border-radius:12px;min-width:0}
+.tabbar button .ico{width:1.65rem;height:1.65rem}
+.tabbar button[aria-current="page"]{color:var(--ink)}
+.tabbar button[aria-current="page"] .ico{color:var(--amber)}
+.nowbar{position:fixed;z-index:7;bottom:calc(var(--tabh) + .4rem);left:max(.5rem,env(safe-area-inset-left,0px));right:max(.5rem,env(safe-area-inset-right,0px));height:4.5rem;display:flex;align-items:center;gap:.7rem;padding:.4rem .5rem .4rem .45rem;border-radius:12px;background:linear-gradient(90deg,color-mix(in srgb,var(--c,#444) 55%,#17171c),#17171c 75%);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+@media (min-width:900px){.nowbar{left:0;right:0;bottom:0;border-radius:0;height:calc(4.9rem + env(safe-area-inset-bottom,0px));padding:.5rem max(1rem,env(safe-area-inset-right,0px)) calc(.5rem + env(safe-area-inset-bottom,0px)) max(1rem,env(safe-area-inset-left,0px));box-shadow:none;border-top:1px solid var(--line)}}
+.nb-main{flex:1;min-width:0;display:flex;align-items:center;gap:.7rem;border:0;background:none;padding:0;cursor:pointer;text-align:left;min-height:3.5rem}
+.nbthumb{position:relative;display:block;width:5.6rem;aspect-ratio:16/9;border-radius:6px;overflow:hidden;flex:none}
+.nbtxt{min-width:0;display:grid}
+.nbtxt small{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--amber)}
+.nbtxt b,.nbtxt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nbtxt span{font-size:.9rem;color:var(--muted)}
+.nowbar>.eq{color:var(--amber);height:1.3rem}
+.nbplay{flex:none;display:inline-flex;align-items:center;gap:.4rem;min-height:48px;min-width:48px;justify-content:center;padding:0 1rem;border-radius:999px;border:0;background:var(--ink);color:#000;font-weight:800;text-decoration:none;cursor:pointer}
+@media (max-width:420px){.nbplay span{display:none}.nbplay{padding:0}.nbthumb{width:4.6rem}}
+
+/* views */
+#view{padding-bottom:calc(var(--tabh) + var(--nowh) + env(safe-area-inset-bottom,0px) + 2.5rem);min-height:60vh}
+.v-home,.v-genre,.v-watched{background:linear-gradient(180deg,color-mix(in srgb,var(--hc,#444) 30%,transparent),transparent 24rem)}
+.greet{font-size:1.85rem;font-weight:900;letter-spacing:-.015em;margin:0;padding-top:1.3rem;line-height:1.15}
+.stat{margin:.2rem 0 1.1rem;color:var(--muted);font-weight:600}
+.qp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+:root[data-size="3"] .qp{grid-template-columns:minmax(0,1fr)}
+@media (min-width:700px){.qp,:root[data-size="3"] .qp{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1100px){.qp,:root[data-size="3"] .qp{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.qpi{position:relative;display:grid;grid-template-columns:var(--qth,4.2rem) minmax(0,1fr) auto;align-items:center;gap:.7rem;min-height:4.2rem;padding:0 .7rem 0 0;border:0;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.09);cursor:pointer;text-align:left;transition:background .15s}
+.qpi:hover{background:rgba(255,255,255,.17)}
+.qth{position:relative;display:block;width:var(--qth,4.2rem);height:100%;min-height:4.2rem;overflow:hidden}
+.qpi b{overflow-wrap:anywhere;hyphens:auto;font-size:.98rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qpi .eq{color:var(--amber)}
+@media (max-width:699px){.qp{--qth:3.3rem}.qpi{gap:.55rem;padding-right:.45rem;min-height:3.6rem}.qth{min-height:3.6rem}.qpi b{font-size:.9rem}}
+
+.feature{position:relative;display:grid;gap:1.4rem;align-items:center;margin-top:1.8rem;padding:1.3rem;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 26%,var(--card)),var(--card) 62%)}
+@media (min-width:700px){.feature{grid-template-columns:minmax(0,14rem) minmax(0,1fr);column-gap:7.5rem;padding:1.7rem}}
+.disc{position:relative;width:min(58%,14rem);aspect-ratio:1}
+@media (min-width:700px){.disc{width:100%}}
+.sleeve{position:absolute;inset:0;z-index:2;display:block;border-radius:6px;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.65)}
+.sleeve::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.14),transparent 40%)}
+.disc .vwrap{inset:3%;z-index:1;transform:translateX(44%)}
+.fk{display:flex;align-items:center;gap:.55rem;font-size:.85rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.feature h2{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:clamp(2.6rem,7vw,4.6rem);line-height:.9;margin:.35rem 0 .3rem;text-wrap:balance;overflow-wrap:anywhere}
+.ft{font-size:1.2rem;font-weight:700;margin:0 0 .5rem}
+.meta{display:flex;flex-wrap:wrap;gap:.3rem .9rem;color:var(--muted);font-size:.95rem;align-items:center}
+.acts{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:52px;padding:0 1.2rem;border-radius:999px;border:0;background:var(--card-h);color:var(--ink);font-weight:800;font-size:1rem;cursor:pointer;text-decoration:none;text-align:center}
+.pill:hover{filter:brightness(1.15)}
+.pill.amber{background:var(--amber);color:var(--amber-ink);box-shadow:0 8px 24px -8px rgba(255,181,71,.65)}
+.pill.on{background:var(--ok);color:#0b2a0a}
+.q4k{font-size:.72rem;font-weight:900;letter-spacing:.08em;padding:.18rem .42rem;border-radius:5px;background:var(--ink);color:#000}
+
+.shh{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:2.3rem 0 .9rem}
+.shh h2{margin:0;font-size:1.45rem;font-weight:900;letter-spacing:-.01em;display:flex;align-items:center;gap:.6rem;line-height:1.2}
+.shh h2 .eq{color:var(--c,var(--amber))}
+.showall{min-height:48px;padding:0 .5rem;border:0;background:none;color:var(--muted);font-weight:800;cursor:pointer;white-space:nowrap}
+.showall:hover{color:var(--ink);text-decoration:underline}
+
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+:root[data-size="3"] .tiles{grid-template-columns:minmax(0,1fr)}
+@media (min-width:700px){.tiles,:root[data-size="3"] .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1100px){.tiles,:root[data-size="3"] .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.gtile{position:relative;isolation:isolate;overflow:hidden;min-height:6.6rem;padding:.9rem;border:0;border-radius:12px;cursor:pointer;text-align:left;color:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;background:linear-gradient(135deg,var(--h0),var(--h1))}
+.gtile::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(0,0,0,.25),rgba(0,0,0,0) 60%)}
+.gtile b{font-size:1.1rem;font-weight:900;line-height:1.15;max-width:72%;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+.gtile small{font-size:.85rem;font-weight:700;opacity:.92}
+.gtile .vwrap{width:5.4rem;height:5.4rem;right:-1.4rem;bottom:-1.4rem;transform:rotate(25deg);transition:transform .3s}
+.gtile:hover .vwrap{transform:rotate(25deg) translate(-.3rem,-.3rem)}
+.gtile .vinyl b{display:none}
+
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.4rem .8rem}
+:root[data-size="3"] .cards{grid-template-columns:minmax(0,1fr)}
+@media (min-width:700px){.cards,:root[data-size="3"] .cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1100px){.cards,:root[data-size="3"] .cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.vcard{display:grid;gap:.4rem;align-content:start;min-width:0;padding:0;border:0;background:none;color:var(--ink);text-align:left;cursor:pointer}
+.vthumb{position:relative;isolation:isolate;display:block;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--card);margin-bottom:.25rem;transition:border-radius .2s}
+.vcard:hover .vthumb{border-radius:6px}
+.dur{position:absolute;right:.4rem;bottom:.4rem;z-index:2;padding:.08rem .38rem;border-radius:4px;background:rgba(0,0,0,.82);font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+.k4{position:absolute;left:.4rem;top:.4rem;z-index:2;padding:.08rem .38rem;border-radius:4px;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.35);font-size:.7rem;font-weight:900;letter-spacing:.06em;color:#fff}
+.wbar{position:absolute;left:0;right:0;bottom:0;z-index:2;height:4px;background:var(--amber)}
+.pc{position:absolute;inset:0;margin:auto;z-index:2;width:3.4rem;height:3.4rem;border-radius:50%;background:var(--amber);color:var(--amber-ink);display:grid;place-items:center;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;box-shadow:0 8px 22px rgba(0,0,0,.55)}
+.pc .ico{margin-left:.2rem}
+@media (hover:hover){.vcard:hover .pc{opacity:1;transform:none}}
+.va{font-weight:800;font-size:1.03rem;line-height:1.25;overflow-wrap:anywhere}
+.vt{font-size:.95rem;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vs{font-size:.85rem;color:var(--muted)}
+
+/* playlist header + track list */
+.phead{display:grid;gap:1.1rem;align-items:end;padding:1.6rem 0 1rem}
+@media (min-width:700px){.phead{grid-template-columns:12rem minmax(0,1fr);gap:1.6rem}}
+.pcov{position:relative;isolation:isolate;overflow:hidden;width:min(12rem,52%);aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,var(--h0),var(--h1));box-shadow:0 18px 44px rgba(0,0,0,.55)}
+@media (min-width:700px){.pcov{width:100%}}
+.pcov .vwrap{width:66%;height:66%;right:-14%;bottom:-14%}
+.pcov .vinyl b{display:none}
+.pcname{position:absolute;left:.8rem;top:.7rem;right:.8rem;font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:2.1rem;line-height:.9;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+.kick{font-size:.85rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.phead h1,.pageh{font-size:clamp(2.1rem,6.5vw,4.2rem);font-weight:900;line-height:1;letter-spacing:-.025em;margin:.2rem 0 .5rem;text-wrap:balance}
+.pageh{padding-top:1.3rem;font-size:2rem}
+.psub{margin:0;color:var(--muted);font-weight:600}
+.pact{display:flex;align-items:center;gap:1rem;margin:.5rem 0 1.1rem}
+.shuf{display:inline-flex;align-items:center;gap:.85rem;border:0;background:none;padding:0;cursor:pointer;font-weight:800;font-size:1.05rem;min-height:56px}
+.bigc{width:3.6rem;height:3.6rem;border-radius:50%;display:grid;place-items:center;background:var(--amber);color:var(--amber-ink);box-shadow:0 8px 22px rgba(0,0,0,.45);transition:transform .15s}
+.shuf:hover .bigc{transform:scale(1.05)}
+.thead{display:none}
+.tl{display:grid;gap:.1rem}
+.trow{display:grid;grid-template-columns:5.6rem minmax(0,1fr);gap:.85rem;align-items:center;width:100%;min-height:4.3rem;padding:.45rem .5rem;border:0;border-radius:8px;background:none;color:var(--ink);text-align:left;cursor:pointer}
+.trow:hover{background:var(--card-h)}
+.tn,.tven,.tdur{display:none}
+.tthumb{position:relative;display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden}
+.tmain{display:grid;min-width:0}
+.tmain b{font-size:1.03rem;line-height:1.25;overflow-wrap:anywhere}
+.tmain span{font-size:.93rem;color:var(--muted);overflow-wrap:anywhere}
+.tmain .tsub{font-size:.85rem}
+.trow.now b,.trow.now .tn{color:var(--amber)}
+@media (min-width:900px){
+  .thead,.trow{grid-template-columns:2.4rem 7rem minmax(0,1.3fr) minmax(0,1fr) 5.5rem}
+  .thead{display:grid;gap:.85rem;padding:.4rem .5rem;margin-bottom:.4rem;border-bottom:1px solid var(--line);color:var(--muted);font-size:.85rem;font-weight:700}
+  .thead .r,.tdur{text-align:right}
+  .tn{display:grid;place-items:center;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+  .tn .ic{display:none}
+  .tven,.tdur{display:block;color:var(--muted);font-size:.92rem;font-variant-numeric:tabular-nums}
+  .tmain .tsub{display:none}
+}
+@media (min-width:900px) and (hover:hover){.trow:hover .tn .num{display:none}.trow:hover .tn .ic{display:inline}}
+.msearch{position:relative;display:block;margin:.4rem 0 .4rem}
+@media (min-width:900px){.msearch{display:none}}
+.empty{display:grid;justify-items:center;gap:.8rem;margin-top:1.4rem;padding:2rem 1.2rem;border:1px dashed var(--line);border-radius:16px;text-align:center;color:var(--muted)}
+.empty b{font-size:1.2rem;color:var(--ink)}
+.loading{display:flex;align-items:center;gap:.7rem;padding:3rem 0;font-weight:800;font-size:1.2rem}
+.loading .eq{color:var(--amber);height:1.4rem}
+
+/* watch page */
+.watch{position:fixed;inset:0;z-index:20;overflow:auto;background:var(--bg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wtop{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:.9rem;padding-block:.6rem;background:rgba(9,9,11,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.back{display:inline-flex;align-items:center;gap:.3rem;min-height:50px;padding:0 1.1rem 0 .7rem;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:800;font-size:1.02rem;cursor:pointer}
+.wtop .logo{margin:0;font-size:1.25rem;cursor:default}
+.wgrid{max-width:1320px;margin:0 auto;display:grid;gap:1.8rem;padding-block:.5rem 3rem}
+@media (min-width:1000px){.wgrid{grid-template-columns:minmax(0,1fr) 23rem}}
+.pbox{position:relative;isolation:isolate;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000}
+.pbox::after{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(closest-side,rgba(0,0,0,.35),rgba(0,0,0,.1))}
+.pbox iframe{position:absolute;inset:0;z-index:3;width:100%;height:100%;border:0}
+.bigp{position:absolute;inset:0;z-index:2;margin:auto;width:5.6rem;height:5.6rem;border-radius:50%;border:0;display:grid;place-items:center;background:var(--amber);color:var(--amber-ink);cursor:pointer;text-decoration:none;box-shadow:0 0 0 12px rgba(255,181,71,.2),0 12px 34px rgba(0,0,0,.6);transition:transform .15s}
+.bigp:hover{transform:scale(1.06)}
+.bigp .ico{width:2.5rem;height:2.5rem;margin-left:.3rem}
+.pcap{position:absolute;left:0;right:0;bottom:.9rem;z-index:2;text-align:center;font-weight:800;text-shadow:0 1px 10px rgba(0,0,0,.9)}
+.wtitle h1{font-size:1.8rem;font-weight:900;line-height:1.15;letter-spacing:-.015em;margin:1.1rem 0 .1rem;overflow-wrap:anywhere}
+.wtitle p{margin:0;font-size:1.18rem;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.9rem 0}
+.chip{display:inline-flex;align-items:center;min-height:2.5rem;padding:0 .95rem;border-radius:999px;border:0;background:var(--card-h);color:var(--ink);font-weight:700;font-size:.92rem}
+button.chip{cursor:pointer}button.chip:hover{background:#30303a}
+.chip.k{background:var(--ink);color:#000;font-weight:900}
+.chip.official{color:var(--amber)}
+.wact{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0 1.2rem}
+.desc{display:grid;gap:.75rem;padding:1rem 1.1rem;border-radius:12px;background:var(--card)}
+.desc h2{margin:0;font-size:1.12rem}
+.desc p{margin:0}
+.desc .muted{color:var(--muted);font-size:.95rem}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));gap:.55rem;margin:0}
+.facts div{padding:.5rem .7rem;border-radius:8px;background:rgba(255,255,255,.05)}
+.facts dt{font-size:.8rem;font-weight:700;color:var(--muted)}
+.facts dd{margin:0;font-weight:800;overflow-wrap:anywhere}
+.lbl{font-weight:900;font-size:1.12rem;margin:1.4rem 0 .6rem}
+.stills{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
+.stills img{width:100%;min-width:0;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:var(--card);color:transparent}
+.tip{display:grid;gap:.3rem;margin-top:1.2rem;padding:.9rem 1rem;border-radius:12px;background:var(--card);font-size:.97rem}
+.tip b{color:var(--amber)}
+.lnk{justify-self:start;min-height:48px;padding:.6rem 0;border:0;background:none;color:var(--muted);font-size:.95rem;text-decoration:underline;cursor:pointer}
+.lnk.warn{color:var(--warn)}
+.upnext h2{margin:0 0 .7rem;font-size:1.25rem;font-weight:900}
+.unrow{display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:.75rem;align-items:start;width:100%;padding:.35rem;border:0;border-radius:10px;background:none;color:var(--ink);text-align:left;cursor:pointer}
+@media (max-width:600px){.unrow{grid-template-columns:7.8rem minmax(0,1fr)}}
+.unrow:hover{background:var(--card)}
+.unthumb{position:relative;display:block;aspect-ratio:16/9;border-radius:8px;overflow:hidden}
+.unrow b{display:block;font-size:.98rem;line-height:1.25;overflow-wrap:anywhere}
+.unrow small{display:block;font-size:.88rem;color:var(--muted);overflow-wrap:anywhere}
+
+/* sheets */
+.scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.66);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.sheet{position:relative;width:100%;max-width:640px;max-height:94vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding-bottom:calc(1.4rem + env(safe-area-inset-bottom,0px))}
+@media (min-width:720px){.scrim{align-items:center}.sheet{border-radius:24px;border-bottom:1px solid var(--line)}}
+.close{position:absolute;top:.8rem;right:.8rem;z-index:2;display:inline-flex;align-items:center;gap:.4rem;min-height:48px;padding:0 1rem;border-radius:999px;border:0;background:var(--card-h);font-weight:800;cursor:pointer}
+.sheet-in{display:grid;gap:1rem;padding:1.4rem 1.3rem 0}
+.sheet-in>*{min-width:0}
+.sheet h3{margin:0;padding-right:6.5rem;font-size:1.45rem;line-height:1.25}
+.sheet p{margin:0}
+ol.steps{margin:0;padding:0;list-style:none;display:grid;gap:.7rem;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:2.4rem 1fr;gap:.8rem;align-items:start;padding:.9rem;border-radius:14px;background:var(--card)}
+ol.steps li::before{content:counter(s);width:2.4rem;height:2.4rem;border-radius:50%;display:grid;place-items:center;background:var(--amber);color:var(--amber-ink);font-weight:900;font-size:1.1rem}
+ol.steps b{display:block;font-size:1.05rem}
+ol.steps span{color:var(--muted);font-size:.96rem}
+form{display:grid;gap:1rem}
+label{display:grid;gap:.35rem;font-size:.95rem;font-weight:800;min-width:0}
+label small{font-weight:600;color:var(--muted);font-size:.85rem}
+input[type=text],input[type=url],select{width:100%;min-width:0;min-height:52px;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:1.05rem;font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:1rem}
+.radio,.check{display:flex;gap:.7rem;align-items:center;min-height:52px;padding:.5rem .8rem;border-radius:12px;border:1px solid var(--line);font-weight:700;cursor:pointer}
+.check{align-items:flex-start;padding:.8rem}
+.radio input,.check input{width:1.4rem;height:1.4rem;flex:none;accent-color:var(--amber)}
+.radio:has(input:checked){border-color:var(--amber);background:rgba(255,181,71,.08)}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:.5rem}
+legend{font-weight:800;margin-bottom:.4rem}
+.status{min-height:1.5em;font-weight:700}
+.status.err{color:var(--warn)}
+.toast{position:fixed;left:50%;z-index:50;bottom:calc(var(--tabh) + var(--nowh) + env(safe-area-inset-bottom,0px) + 1rem);transform:translateX(-50%);max-width:calc(100% - 32px);padding:.8rem 1.2rem;border-radius:14px;background:var(--ink);color:#000;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.5);overflow-wrap:anywhere}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="Library"></aside>
+  <div class="mainwrap">
+    <header class="top pad">
+      <button class="logo" type="button" data-go="home" aria-label="Mills Concert Hall, home"><span class="eq live" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Mills Concert Hall</span><small>4K</small></button>
+      <label class="tsearch" for="q"><span class="vh">Search concerts</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" class="qinput" type="search" placeholder="What do you want to watch?" autocomplete="off"></label>
+      <button class="tbtn hide-m" type="button" data-help>How to watch</button>
+    </header>
+    <main id="view" class="pad"></main>
+  </div>
+</div>
+<div class="nowbar" id="nowbar" hidden></div>
+<nav class="tabbar" aria-label="Main">
+  <button type="button" data-go="home"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button type="button" data-go="search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search</button>
+  <button type="button" data-go="watched"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.6 2.6L16 9.6"/></svg>Watched</button>
+  <button type="button" data-help><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3M12 17h.01"/></svg>Help</button>
+  <button type="button" data-add id="tabAdd"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+</nav>
+<div class="watch" id="watch" role="dialog" aria-modal="true" aria-label="Show" hidden></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const GENRES=[
+  {k:"rock",n:"Classic & Modern Rock",s:"Rock",h:["#e2452a","#5b21b6"]},
+  {k:"grunge",n:"Grunge & Alternative",s:"Grunge",h:["#7f8f1f","#0f5f58"]},
+  {k:"jam",n:"Jam Bands",s:"Jam",h:["#d6409f","#b45309"]},
+  {k:"guitar",n:"Guitar Heroes & Blues",s:"Guitar",h:["#e07a16","#1d4ed8"]},
+  {k:"fusion",n:"Jazz Fusion & Funk",s:"Fusion",h:["#0f9488","#9d174d"]},
+  {k:"jazz",n:"Jazz & Soul",s:"Jazz",h:["#c2790a","#7c2d12"]},
+  {k:"pop",n:"Pop & R&B",s:"Pop",h:["#e0306e","#6d28d9"]},
+  {k:"elec",n:"Electronic",s:"Electronic",h:["#0891b2","#4338ca"]},
+  {k:"orch",n:"Orchestral & Instrumental",s:"Orchestra",h:["#7c3aed","#0369a1"]},
+  {k:"country",n:"Country & Folk",s:"Country",h:["#4d9a3a","#b45309"]}
+];
+const G=Object.fromEntries(GENRES.map(g=>[g.k,g]));
+const SRC={official:"Official film",fan:"Filmed by a fan",restored:"Restored to 4K"};
+const SRC_WHO={official:"The band or venue",fan:"A fan in the crowd",restored:"Restored older film"};
+const SRC_LONG={official:"Filmed by the band, venue or festival with professional cameras.",fan:"Filmed from the crowd, so expect a moving camera and lots of cheering.",restored:"An older concert film that has been cleaned up and sharpened to 4K."};
+const STATIC=location.protocol==="file:"||/(^|\.)github\.io$|^localhost$|^127\./.test(location.hostname);
+const CATALOG=[{"vid":"xxJr7CZE3AY","artist":"Led Zeppelin","title":"Knebworth 1979","venue":"Knebworth Park, England","year":"1979","genre":"rock","dur":"2:40:10","src":"restored","note":"Their last big UK show, cleaned up to 4K at 60 frames a second.","addedBy":"","order":1},{"vid":"WWcJe2Zr5Ts","artist":"Monterey Pop Festival","title":"Monterey Pop 1967","venue":"Monterey, California","year":"1967","genre":"rock","dur":"1:29:32","src":"restored","note":"The festival that introduced Jimi Hendrix and Janis Joplin to America, with Otis Redding and The Who.","addedBy":"","order":2},{"vid":"8ahZ1ijLmMY","artist":"Paul McCartney & Wings","title":"Rockshow","venue":"Seattle Kingdome","year":"1976","genre":"rock","dur":"2:09:29","src":"restored","note":"Wings at their peak on the 1976 world tour, newly restored.","addedBy":"","order":3},{"vid":"5SueSkCkbC8","artist":"The Rolling Stones","title":"Hyde Park 1969","venue":"Hyde Park, London","year":"1969","genre":"rock","dur":"53:02","src":"restored","note":"The free show in front of a quarter-million people, days after Brian Jones died.","addedBy":"","order":4},{"vid":"MQHKWUju2sI","artist":"The Rolling Stones","title":"Hackney Diamonds Tour","venue":"SoFi Stadium, Los Angeles","year":"2024","genre":"rock","dur":"2:03:49","src":"fan","note":"Mick and Keith still running the stage in their 80s.","addedBy":"","order":5},{"vid":"yYhy7JXpPwU","artist":"Lynyrd Skynyrd","title":"Live on the BBC","venue":"BBC Television, London","year":"1975","genre":"rock","dur":"42:00","src":"restored","note":"The 1970s lineup at full strength.","addedBy":"","order":6},{"vid":"mCxr9XCif6g","artist":"Grateful Dead","title":"Downhill From Here","venue":"Alpine Valley, Wisconsin","year":"1989","genre":"jam","dur":"2:31:06","src":"restored","note":"The Dead's own pro-shot concert film, remastered.","addedBy":"","order":7},{"vid":"3Emzk-YEslg","artist":"David Gilmour","title":"Live at the Circus Maximus","venue":"Circus Maximus, Rome","year":"2016","genre":"rock","dur":"2:22:15","src":"official","note":"Pink Floyd's guitarist in an ancient Roman arena. Comfortably Numb is the highlight.","addedBy":"","order":8},{"vid":"PqDazac8KMY","artist":"Pink Floyd","title":"Delicate Sound of Thunder","venue":"Nassau Coliseum, New York","year":"1988","genre":"rock","dur":"2:11:05","src":"official","note":"The band's own concert film, restored and remixed.","addedBy":"","order":9},{"vid":"PQdBUEXxCoo","artist":"Muse","title":"Live at Rome Olympic Stadium","venue":"Stadio Olimpico, Rome","year":"2013","genre":"rock","dur":"1:27:19","src":"official","note":"One of the first concert films shot in 4K, and still one of the best-looking.","addedBy":"","order":10},{"vid":"ENfETz7RCwo","artist":"Greta Van Fleet","title":"Live at Red Rocks: Act 2","venue":"Red Rocks, Colorado","year":"","genre":"rock","dur":"33:07","src":"official","note":"The young band that sounds the most like 1970s Zeppelin.","addedBy":"","order":11},{"vid":"4xnpYGYysCU","artist":"Greta Van Fleet","title":"Live in Sacramento","venue":"Golden 1 Center, Sacramento","year":"2023","genre":"rock","dur":"2:03:41","src":"fan","note":"","addedBy":"","order":12},{"vid":"no6bD7ojlOI","artist":"Metallica","title":"Live at Sphere","venue":"Sphere, Las Vegas","year":"2026","genre":"rock","dur":"2:20:43","src":"fan","note":"Inside the giant video dome in Las Vegas.","addedBy":"","order":13},{"vid":"AIa0dj9MXn8","artist":"Green Day","title":"Rock in Rio","venue":"Rio de Janeiro","year":"2022","genre":"rock","dur":"1:43:58","src":"official","note":"","addedBy":"","order":14},{"vid":"jxa1j7nRQuw","artist":"Coldplay","title":"Music of the Spheres","venue":"Allegiant Stadium, Las Vegas","year":"2025","genre":"rock","dur":"1:57:00","src":"fan","note":"Shot from the front row.","addedBy":"","order":15},{"vid":"ZYuTV7qheFY","artist":"Audioslave","title":"Pinkpop Festival","venue":"Landgraaf, Netherlands","year":"2003","genre":"grunge","dur":"59:19","src":"restored","note":"Chris Cornell with the Rage Against the Machine band.","addedBy":"","order":16},{"vid":"aiH324JhVZI","artist":"Pearl Jam","title":"Live at Pinkpop","venue":"Landgraaf, Netherlands","year":"1992","genre":"grunge","dur":"43:46","src":"restored","note":"Eddie Vedder climbing the stage rigging at the height of the grunge years.","addedBy":"","order":17},{"vid":"kS9O6mg-kaY","artist":"Pearl Jam","title":"Madison Square Garden","venue":"Madison Square Garden, New York","year":"2022","genre":"grunge","dur":"2:19:58","src":"fan","note":"Multi-camera fan film from the 9/11 show.","addedBy":"","order":18},{"vid":"BgiYcRV8Q5E","artist":"Nirvana","title":"MTV Unplugged in New York","venue":"Sony Music Studios, New York","year":"1993","genre":"grunge","dur":"1:06:28","src":"restored","note":"The quiet, candlelit set that became their most famous performance.","addedBy":"","order":19},{"vid":"-F9pdMsQE9o","artist":"Nirvana","title":"Live in Buenos Aires","venue":"Estadio José Amalfitani, Buenos Aires","year":"1992","genre":"grunge","dur":"1:22:19","src":"restored","note":"","addedBy":"","order":20},{"vid":"sMqPKrK7MZY","artist":"Alice in Chains","title":"Live at the Vooruit","venue":"Ghent, Belgium","year":"1993","genre":"grunge","dur":"1:16:58","src":"restored","note":"Layne Staley and Jerry Cantrell in a small European hall.","addedBy":"","order":21},{"vid":"QOZNGISdM2Y","artist":"Stone Temple Pilots","title":"Alive in the Windy City","venue":"Riviera Theatre, Chicago","year":"2010","genre":"grunge","dur":"1:10:36","src":"restored","note":"Scott Weiland's reunion tour.","addedBy":"","order":22},{"vid":"7wnEaKcynEo","artist":"Stone Temple Pilots","title":"MTV Unplugged","venue":"New York","year":"1993","genre":"grunge","dur":"32:24","src":"restored","note":"","addedBy":"","order":23},{"vid":"AX5s_NHYor4","artist":"The Smashing Pumpkins","title":"Lollapalooza","venue":"Grant Park, Chicago","year":"2026","genre":"grunge","dur":"1:28:37","src":"restored","note":"Hometown festival set.","addedBy":"","order":24},{"vid":"KlZFS6HR6P8","artist":"Foo Fighters","title":"Live at the Forum","venue":"Kia Forum, Los Angeles","year":"2021","genre":"grunge","dur":"2:25:55","src":"fan","note":"Dave Grohl's band in a packed arena.","addedBy":"","order":25},{"vid":"Uw7OzwV_vgU","artist":"Foo Fighters","title":"Live in Denver","venue":"Empower Field, Denver","year":"","genre":"grunge","dur":"2:24:31","src":"fan","note":"Their biggest U.S. show, filmed from the front row.","addedBy":"","order":26},{"vid":"GL-IgEkms8Y","artist":"Queens of the Stone Age","title":"Live on KEXP","venue":"KEXP studio, Seattle","year":"","genre":"grunge","dur":"36:45","src":"official","note":"A tight radio-studio set. Great sound.","addedBy":"","order":27},{"vid":"4kLM9qCXMvk","artist":"Queens of the Stone Age","title":"Live in Tokyo","venue":"Tokyo","year":"2024","genre":"grunge","dur":"1:48:54","src":"fan","note":"","addedBy":"","order":28},{"vid":"rFuX08vV_qw","artist":"Tool","title":"Lollapalooza Chile","venue":"Santiago, Chile","year":"2025","genre":"grunge","dur":"1:45:46","src":"fan","note":"Multi-camera, 4K HDR. Massive light show.","addedBy":"","order":29},{"vid":"Ct23en6S9F8","artist":"Red Hot Chili Peppers","title":"Live in Tokyo","venue":"Tokyo","year":"2023","genre":"grunge","dur":"1:50:00","src":"fan","note":"With John Frusciante back on guitar.","addedBy":"","order":30},{"vid":"ygwKjK-re_o","artist":"Arctic Monkeys","title":"Live in Tokyo","venue":"Zepp Haneda, Tokyo","year":"2023","genre":"grunge","dur":"1:36:33","src":"fan","note":"","addedBy":"","order":31},{"vid":"aIBp6JJMnsg","artist":"Phish","title":"Saratoga Springs, Night 2","venue":"Saratoga Performing Arts Center, NY","year":"2025","genre":"jam","dur":"1:29:55","src":"official","note":"Phish's own 4K HDR upload.","addedBy":"","order":32},{"vid":"b-UsgKRNT0g","artist":"Phish","title":"Saratoga Springs, Night 1","venue":"Saratoga Performing Arts Center, NY","year":"2025","genre":"jam","dur":"1:20:57","src":"official","note":"","addedBy":"","order":33},{"vid":"YmV1TF4y2BE","artist":"Goose","title":"Live at Madison Square Garden","venue":"Madison Square Garden, New York","year":"","genre":"jam","dur":"4:07:13","src":"official","note":"The Connecticut band's big MSG debut. Four hours.","addedBy":"","order":34},{"vid":"g7nHoBlmM_w","artist":"Goose","title":"Live in New Orleans, Night 1","venue":"New Orleans","year":"2026","genre":"jam","dur":"2:57:13","src":"official","note":"","addedBy":"","order":35},{"vid":"09eRy7BKs6c","artist":"Goose","title":"Red Rocks","venue":"Red Rocks, Colorado","year":"2026","genre":"jam","dur":"3:14:12","src":"official","note":"","addedBy":"","order":36},{"vid":"mlQ9fiP8pTI","artist":"Dead & Company","title":"The Final Show","venue":"Oracle Park, San Francisco","year":"2023","genre":"jam","dur":"4:34:27","src":"fan","note":"The last night of their farewell tour.","addedBy":"","order":37},{"vid":"Tk3Z7FtA-yc","artist":"Dead & Company","title":"Live at Sphere, Set 1","venue":"Sphere, Las Vegas","year":"2024","genre":"jam","dur":"1:05:48","src":"fan","note":"","addedBy":"","order":38},{"vid":"z_X39Ng-7Tw","artist":"Billy Strings","title":"With Trey Anastasio","venue":"New York","year":"2022","genre":"jam","dur":"2:29:45","src":"fan","note":"Bluegrass virtuoso, joined by Phish's guitarist.","addedBy":"","order":39},{"vid":"m3iUsRLcnR4","artist":"Billy Strings","title":"Live in Newark","venue":"Prudential Center, Newark, NJ","year":"2025","genre":"jam","dur":"2:08:27","src":"fan","note":"Right across the river.","addedBy":"","order":40},{"vid":"z6uN30rqrno","artist":"Tedeschi Trucks Band","title":"Beacon Theatre, Night 1","venue":"Beacon Theatre, New York","year":"2026","genre":"jam","dur":"2:43:15","src":"fan","note":"Derek Trucks' slide guitar and Susan Tedeschi's voice.","addedBy":"","order":41},{"vid":"FHwrxWkyoAQ","artist":"Gov't Mule","title":"Daze Between in New Orleans","venue":"New Orleans","year":"2024","genre":"jam","dur":"1:34:32","src":"fan","note":"Warren Haynes' heavy, bluesy jam band.","addedBy":"","order":42},{"vid":"VoQPpK_ZfR8","artist":"My Morning Jacket","title":"Beacon Theatre, Night 1","venue":"Beacon Theatre, New York","year":"2023","genre":"jam","dur":"2:23:47","src":"fan","note":"","addedBy":"","order":43},{"vid":"vYHDUuTErxo","artist":"Widespread Panic","title":"Wilmington, Day One","venue":"Wilmington, North Carolina","year":"2023","genre":"jam","dur":"2:54:14","src":"fan","note":"","addedBy":"","order":44},{"vid":"JVNEcgspyTE","artist":"Dave Matthews Band","title":"SPAC, Night 2","venue":"Saratoga Springs, NY","year":"2025","genre":"jam","dur":"2:33:18","src":"fan","note":"","addedBy":"","order":45},{"vid":"q4xKvHANqjk","artist":"Khruangbin","title":"Pitchfork Live","venue":"Villain, Brooklyn","year":"","genre":"jam","dur":"52:22","src":"official","note":"Hypnotic, groove-heavy trio. Easy to put on in the background.","addedBy":"","order":46},{"vid":"eStmG9rJkxk","artist":"John Mayer","title":"Live at Webster Hall","venue":"Webster Hall, New York","year":"2006","genre":"guitar","dur":"1:30:00","src":"restored","note":"Pro-shot club show from the Continuum era.","addedBy":"","order":47},{"vid":"84BC9yCXpN8","artist":"John Mayer Trio","title":"Where the Light Is","venue":"Nokia Theatre, Los Angeles","year":"2007","genre":"guitar","dur":"42:14","src":"restored","note":"The blues-trio set from his famous concert film.","addedBy":"","order":48},{"vid":"VvkZcVRNTNs","artist":"John Mayer","title":"Austin City Limits","venue":"Austin, Texas","year":"2003","genre":"guitar","dur":"54:06","src":"restored","note":"","addedBy":"","order":49},{"vid":"RdlIAQ3vffA","artist":"Eric Clapton","title":"Live in Milan","venue":"Milan, Italy","year":"2025","genre":"guitar","dur":"1:42:34","src":"fan","note":"","addedBy":"","order":50},{"vid":"MbDf319K0P8","artist":"Eric Clapton & Mark Knopfler","title":"Live in Tokyo","venue":"Tokyo Dome","year":"1988","genre":"guitar","dur":"2:07:20","src":"restored","note":"Two guitar legends sharing one stage. Over 3 million views.","addedBy":"","order":51},{"vid":"OizkvZ2xkpY","artist":"Dire Straits","title":"Live in Sydney","venue":"Sydney, Australia","year":"1986","genre":"guitar","dur":"2:36:23","src":"restored","note":"Brothers in Arms tour, Mark Knopfler at his best.","addedBy":"","order":52},{"vid":"8XgUtUkfB-o","artist":"Dire Straits","title":"Live at Nîmes","venue":"Arènes de Nîmes, France","year":"1992","genre":"guitar","dur":"2:05:01","src":"restored","note":"In a 2,000-year-old Roman amphitheater.","addedBy":"","order":53},{"vid":"8zpA0K_Qm20","artist":"Stevie Ray Vaughan","title":"Capitol Theatre, Passaic NJ","venue":"Capitol Theatre, Passaic, NJ","year":"1985","genre":"guitar","dur":"1:39:38","src":"restored","note":"SRV and Double Trouble, just up the road in Jersey.","addedBy":"","order":54},{"vid":"KIXjj_s8npw","artist":"Stevie Ray Vaughan","title":"Austin City Limits","venue":"Austin, Texas","year":"1983","genre":"guitar","dur":"1:14:59","src":"restored","note":"The full, unedited TV taping.","addedBy":"","order":55},{"vid":"RmzgJ-mFqlI","artist":"Jeff Beck","title":"Live in Texas","venue":"Cynthia Woods Mitchell Pavilion, Texas","year":"2022","genre":"guitar","dur":"1:04:27","src":"fan","note":"One of his last tours before he passed in 2023.","addedBy":"","order":56},{"vid":"-LorPF1WcxU","artist":"Joe Satriani & Steve Vai","title":"SatchVai at the Beacon","venue":"Beacon Theatre, New York","year":"2026","genre":"guitar","dur":"1:44:20","src":"fan","note":"Two shred legends together.","addedBy":"","order":57},{"vid":"fZ7DBuU_ueA","artist":"Steve Vai","title":"Inviolate Tour","venue":"Teatro Dal Verme, Milan","year":"2023","genre":"guitar","dur":"2:07:59","src":"fan","note":"","addedBy":"","order":58},{"vid":"YvC7eieaz5o","artist":"Joe Bonamassa","title":"Live in Clearwater","venue":"The Baycare Sound, Florida","year":"2026","genre":"guitar","dur":"1:55:32","src":"fan","note":"","addedBy":"","order":59},{"vid":"8Z39y8kQDkQ","artist":"Gary Clark Jr.","title":"Live at the Fillmore","venue":"Fillmore Miami Beach","year":"","genre":"guitar","dur":"47:34","src":"fan","note":"","addedBy":"","order":60},{"vid":"0oIIRc0zc_U","artist":"Vulfpeck","title":"Live in France","venue":"France","year":"","genre":"fusion","dur":"1:48:18","src":"official","note":"Funky, joyful, and very tight. A great intro to the band.","addedBy":"","order":61},{"vid":"1LkYJl5EdNY","artist":"Vulfpeck","title":"Live at Red Rocks","venue":"Red Rocks, Colorado","year":"","genre":"fusion","dur":"1:38:57","src":"official","note":"","addedBy":"","order":62},{"vid":"z1bgqUlMerI","artist":"Vulfpeck","title":"Live at Bonnaroo","venue":"Manchester, Tennessee","year":"","genre":"fusion","dur":"1:15:17","src":"official","note":"","addedBy":"","order":63},{"vid":"zw-fDx41RCc","artist":"Cory Wong","title":"Live at L'Olympia","venue":"L'Olympia, Paris","year":"","genre":"fusion","dur":"2:01:25","src":"official","note":"Vulfpeck's rhythm-guitar wizard with his own big band.","addedBy":"","order":64},{"vid":"rXgAQnt57yY","artist":"Snarky Puppy","title":"Somni Tour Kickoff","venue":"The Eastern, Atlanta","year":"2026","genre":"fusion","dur":"1:42:26","src":"fan","note":"Big-band jazz fusion. Bring the subwoofer.","addedBy":"","order":65},{"vid":"_FmDDLqRvJ0","artist":"Stanley Clarke","title":"Live at the Blue Note","venue":"Blue Note, Los Angeles","year":"2026","genre":"fusion","dur":"1:02:46","src":"fan","note":"Return to Forever's bass legend in a small club.","addedBy":"","order":66},{"vid":"sft8dC5Etgs","artist":"Stan Getz Quartet","title":"Live at Montreux","venue":"Montreux, Switzerland","year":"1972","genre":"fusion","dur":"1:02:17","src":"restored","note":"With Chick Corea, Stanley Clarke and Tony Williams.","addedBy":"","order":67},{"vid":"KOQIQfZhQC8","artist":"Incognito","title":"Studio Live Session","venue":"Little Big Beat Studios","year":"","genre":"fusion","dur":"1:13:57","src":"official","note":"Acid-jazz and funk, recorded live in the studio.","addedBy":"","order":68},{"vid":"BnEgnrUCXPY","artist":"Yussef Dayes","title":"The Yussef Dayes Experience","venue":"Malibu","year":"","genre":"fusion","dur":"33:16","src":"official","note":"Drum-led fusion on a cliff over the ocean.","addedBy":"","order":69},{"vid":"1tk1ss5CJ-4","artist":"New Jazz Underground","title":"22: Live in NYC","venue":"New York City","year":"","genre":"fusion","dur":"1:00:42","src":"official","note":"","addedBy":"","order":70},{"vid":"nB7fhyqh0IM","artist":"Bilal","title":"Live at Glasshaus","venue":"Glasshaus","year":"","genre":"jazz","dur":"1:04:50","src":"official","note":"With Questlove, Common and Robert Glasper.","addedBy":"","order":71},{"vid":"y86vl1cpNsg","artist":"International Jazz Day","title":"All-Star Global Concert","venue":"Chicago","year":"2026","genre":"jazz","dur":"2:25:44","src":"official","note":"","addedBy":"","order":72},{"vid":"9cIkHEclaoQ","artist":"Brian Culbertson","title":"The Trilogy Tour","venue":"Detroit","year":"","genre":"jazz","dur":"1:50:10","src":"official","note":"","addedBy":"","order":73},{"vid":"vZYVkitGXBU","artist":"Dua Lipa","title":"Live From Mexico","venue":"Mexico City","year":"2024","genre":"pop","dur":"2:04:08","src":"official","note":"A full stadium show, shot like a film.","addedBy":"","order":74},{"vid":"f_iCC1D0DT8","artist":"Justin Bieber","title":"Live From Coachella","venue":"Coachella, Indio","year":"2026","genre":"pop","dur":"1:28:15","src":"official","note":"","addedBy":"","order":75},{"vid":"4GRfxJiQeyM","artist":"RAYE","title":"Live at Montreux Jazz Festival","venue":"Montreux, Switzerland","year":"2024","genre":"pop","dur":"1:11:23","src":"official","note":"Big voice, big band, lakeside room.","addedBy":"","order":76},{"vid":"AnSZs-22a7A","artist":"Coco Jones","title":"The 1st TERRELL Show","venue":"","year":"","genre":"pop","dur":"40:49","src":"official","note":"","addedBy":"","order":77},{"vid":"I3ErnkE3pGM","artist":"Kaskade","title":"Coachella Full Set","venue":"Coachella, Indio","year":"2026","genre":"elec","dur":"1:01:09","src":"official","note":"","addedBy":"","order":78},{"vid":"fQqusBEnwM4","artist":"Fatboy Slim","title":"Coachella","venue":"Coachella, Indio","year":"2026","genre":"elec","dur":"1:56:47","src":"official","note":"","addedBy":"","order":79},{"vid":"eifPgda7oKc","artist":"Major Lazer","title":"Coachella Full Set","venue":"Coachella, Indio","year":"2026","genre":"elec","dur":"57:46","src":"official","note":"","addedBy":"","order":80},{"vid":"Zy4KtD98S2c","artist":"RÜFÜS DU SOL","title":"Live From Joshua Tree","venue":"Joshua Tree, California","year":"","genre":"elec","dur":"45:45","src":"official","note":"Desert sunset set.","addedBy":"","order":81},{"vid":"-8VC7P3i244","artist":"Above & Beyond","title":"Acoustic at the Hollywood Bowl","venue":"Hollywood Bowl, Los Angeles","year":"2016","genre":"elec","dur":"1:55:16","src":"official","note":"","addedBy":"","order":82},{"vid":"NXD-WJYtkyc","artist":"Ludovico Einaudi","title":"Live From The Steve Jobs Theater","venue":"Cupertino, California","year":"2019","genre":"orch","dur":"1:11:10","src":"official","note":"","addedBy":"","order":83},{"vid":"QkQapdgAa7o","artist":"Oslo Philharmonic","title":"Beethoven's Symphony No. 9","venue":"Oslo","year":"","genre":"orch","dur":"1:12:02","src":"official","note":"Conducted by Klaus Mäkelä.","addedBy":"","order":84},{"vid":"z__mjdWEJjA","artist":"Hermanos Gutierrez","title":"Live at the Miami Beach Bandshell","venue":"Miami Beach","year":"2023","genre":"orch","dur":"1:11:55","src":"official","note":"Cinematic desert guitar. Great dinner-party watch.","addedBy":"","order":85},{"vid":"lIp-OwMozKI","artist":"Asake","title":"Red Bull Symphonic","venue":"","year":"","genre":"orch","dur":"1:22:20","src":"official","note":"Afrobeats with a full orchestra.","addedBy":"","order":86},{"vid":"KBxziWm6oS0","artist":"Chris Stapleton","title":"Live in Tampa","venue":"Raymond James Stadium, Tampa","year":"2026","genre":"country","dur":"1:59:34","src":"fan","note":"","addedBy":"","order":87}];
+let rows=[],view="home",genre=null,term="",db=null,user=null,myId=null,isOwner=false,heroId=null,armDel=false,lastFocus=null,nowLive=false,sideSig="";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const seen=new Set(ls.get("mch.seen",[]));
+let last=ls.get("mch.last",null);
+const ytUrl=r=>"https://www.youtube.com/watch?v="+encodeURIComponent(r.vid);
+const yimg=(r,q)=>`https://i.ytimg.com/vi/${encodeURIComponent(r.vid)}/${q}.jpg`;
+const srcOf=r=>r.src||(r.fan?"fan":"official");
+const EQ=live=>`<span class="eq${live?" live":""}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
+const I={
+  play:'<svg class="ico fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>',
+  shuffle:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 4h4v4M4 20 20 4M20 16v4h-4M15 15l5 5M4 4l5 5"/></svg>',
+  back:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
+  link:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+  tv:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>',
+  home:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  search:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  watched:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.6 2.6L16 9.6"/></svg>',
+  help:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.3M12 17h.01"/></svg>',
+  plus:'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'
+};
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0}
+function artStyle(r){const g=G[r.genre]||G.rock,h=hash(r.vid);return `--c1:${g.h[h%2]};--c2:${g.h[(h+1)%2]};--x:${10+h%70}%;--a:${h%360}deg;--r:${150+h%120}deg`}
+function art(r,size){
+  let h=`<span class="art" style="${artStyle(r)}"></span>`;
+  if(STATIC){
+    if(size==="lg")h+=`<img class="thumb" src="${yimg(r,"maxresdefault")}" alt="" onload="if(this.naturalWidth<200)this.src='${yimg(r,"hqdefault")}'" onerror="this.remove()">`;
+    else h+=`<img class="thumb" src="${yimg(r,size==="md"?"hqdefault":"mqdefault")}" alt="" loading="lazy" onerror="this.remove()">`;
+  } else if(size!=="sm") h+=`<span class="aname">${esc(r.artist)}</span>`;
+  return h}
+const vinyl=(color,label,spin)=>`<span class="vwrap" aria-hidden="true"><span class="vinyl${spin?" spin":""}" style="--lc:${color}">${label?`<b>${esc(label)}</b>`:""}</span></span>`;
+const initials=a=>a.replace(/^the\s+/i,"").split(/[\s&]+/).filter(Boolean).slice(0,2).map(w=>[...w][0]).join("").toUpperCase();
+function mins(d){if(!d)return 0;const p=String(d).split(":").map(Number);if(p.some(isNaN))return 0;return p.length===3?p[0]*60+p[1]+p[2]/60:p[0]+(p[1]||0)/60}
+function niceLen(d){const m=Math.round(mins(d));if(!m)return"";if(m<60)return m+" min";const h=Math.floor(m/60),mm=m%60;return h+" hr"+(mm?" "+mm+" min":"")}
+const hours=list=>Math.round(list.reduce((s,r)=>s+mins(r.dur),0)/60);
+const sorted=list=>[...list].sort((a,b)=>(a.order??a.addedAt??0)-(b.order??b.addedAt??0));
+const byGenre=k=>sorted(rows.filter(r=>r.genre===k));
+const dayNum=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*6e4)/864e5);
+const present=()=>GENRES.filter(g=>rows.some(r=>r.genre===g.k));
+function cols(){if(matchMedia("(min-width:1100px)").matches)return 4;if(matchMedia("(min-width:700px)").matches)return 3;return document.documentElement.dataset.size==="3"?1:2}
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2800)}
+function setSize(n){document.documentElement.dataset.size=n;ls.set("mch.size",n);document.querySelectorAll(".sizer button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.size==n)))}
+document.documentElement.dataset.size="1";
+if(STATIC)$("tabAdd").hidden=true;
+
+/* sidebar */
+function buildSide(){
+  const sig=rows.length+"|"+present().map(g=>g.k).join(",");if(sig===sideSig)return;sideSig=sig;
+  $("side").innerHTML=`<div class="sbox">
+    <button class="logo" type="button" data-go="home">${EQ(true)}<span>Mills Concert Hall</span><small>4K</small></button>
+    <button class="nav" type="button" data-go="home">${I.home}Home</button>
+    <button class="nav" type="button" data-go="search">${I.search}Search</button>
+    <button class="nav" type="button" data-go="watched">${I.watched}Watched</button>
+    <button class="nav" type="button" data-help>${I.help}How to watch</button>
+    ${STATIC?"":`<button class="sadd" type="button" data-add>${I.plus}Add a concert</button>`}
+  </div>
+  <div class="sbox grow"><div class="slabel">Genres</div>
+    ${present().map(g=>`<button class="sgen" type="button" data-g="${g.k}" style="--h0:${g.h[0]};--h1:${g.h[1]}"><span class="gcov">${vinyl("#f6f4f1","",false)}</span><span><b>${esc(g.n)}</b><small>${rows.filter(r=>r.genre===g.k).length} shows</small></span></button>`).join("")}
+  </div>`}
+function markCurrent(){
+  document.querySelectorAll("#side [data-go], .tabbar [data-go]").forEach(b=>b.dataset.go===view?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  document.querySelectorAll("#side [data-g]").forEach(b=>view==="genre"&&b.dataset.g===genre?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+}
+
+/* pieces */
+function playBtn(r,cls){return STATIC?`<button class="${cls}" type="button" data-playnow="${esc(r.id)}">${I.play}Play</button>`:`<a class="${cls}" href="${esc(ytUrl(r))}" target="_blank" rel="noopener" data-watch="${esc(r.id)}">${I.play}Play in 4K</a>`}
+function card(r){const w=seen.has(r.id);
+  return `<button class="vcard" type="button" data-id="${esc(r.id)}" aria-label="${esc(r.artist+": "+r.title)}">
+    <span class="vthumb">${art(r,"md")}<span class="k4">4K</span>${r.dur?`<span class="dur">${esc(r.dur)}</span>`:""}<span class="pc">${I.play}</span>${w?'<span class="wbar"></span>':""}</span>
+    <span class="va">${esc(r.artist)}</span><span class="vt">${esc(r.title)}</span>
+    <span class="vs">${esc([r.year,SRC[srcOf(r)]].filter(Boolean).join(" · "))}${w?" · ✓ Watched":""}</span></button>`}
+function tiles(){return `<div class="tiles">${present().map(g=>`<button class="gtile" type="button" data-g="${g.k}" style="--h0:${g.h[0]};--h1:${g.h[1]}"><b>${esc(g.n)}</b><small>${rows.filter(r=>r.genre===g.k).length} shows</small>${vinyl("#f6f4f1","",false)}</button>`).join("")}</div>`}
+function trackList(list){
+  return `<div class="thead" aria-hidden="true"><span style="text-align:center">#</span><span></span><span>Show</span><span>Where</span><span class="r">Length</span></div>
+  <div class="tl">${list.map((r,i)=>{const now=r.id===last,w=seen.has(r.id);
+    return `<button class="trow${now?" now":""}" type="button" data-id="${esc(r.id)}">
+      <span class="tn">${now?EQ(false):`<span class="num">${i+1}</span><span class="ic">${I.play}</span>`}</span>
+      <span class="tthumb">${art(r,"sm")}${w?'<span class="wbar"></span>':""}</span>
+      <span class="tmain"><b>${esc(r.artist)}</b><span>${esc(r.title)}</span><span class="tsub">${esc([niceLen(r.dur),r.year].filter(Boolean).join(" · "))}${w?" · ✓ Watched":""}</span></span>
+      <span class="tven">${esc([r.venue,r.year].filter(Boolean).join(" · "))}</span>
+      <span class="tdur">${esc(r.dur||"")}</span></button>`}).join("")}</div>`}
+
+/* views */
+function pickHero(){if(heroId&&rows.some(r=>r.id===heroId))return rows.find(r=>r.id===heroId);const pool=[...rows].sort((a,b)=>a.id<b.id?-1:1);return pool[dayNum()%pool.length]}
+function homeHTML(){
+  const h=pickHero();heroId=h.id;const hg=G[h.genre]||G.rock;$("view").style.setProperty("--hc",hg.h[0]);
+  const hr=new Date().getHours(),greet=hr>=5&&hr<12?"Good morning":hr>=12&&hr<17?"Good afternoon":"Good evening";
+  const n=cols()>=3?8:6,picks=[];const lr=last&&rows.find(r=>r.id===last);if(lr)picks.push(lr);
+  for(let i=0;picks.length<n&&i<60;i++)for(const g of GENRES){const list=byGenre(g.k);if(!list.length)continue;const r=list[(dayNum()+i)%list.length];if(picks.length<n&&!picks.includes(r))picks.push(r)}
+  const per={1:3,2:4,3:3,4:4}[cols()];
+  return `<h1 class="greet">${greet}</h1><p class="stat">${rows.length} shows · about ${hours(rows)} hours of live music · all in 4K</p>
+  <div class="qp">${picks.map(r=>`<button class="qpi" type="button" data-id="${esc(r.id)}"><span class="qth">${art(r,"sm")}</span><b>${esc(r.artist)}</b>${r.id===last?EQ(false):"<span></span>"}</button>`).join("")}</div>
+  <section class="feature" style="--c:${hg.h[0]}" aria-label="Tonight's feature">
+    <div class="disc"><span class="sleeve">${art(h,"lg")}</span>${vinyl(hg.h[0],initials(h.artist),true)}</div>
+    <div><div class="fk">${EQ(true)}Tonight's feature</div><h2>${esc(h.artist)}</h2><p class="ft">${esc(h.title)}</p>
+      <div class="meta"><span class="q4k">4K</span>${[h.venue,h.year,niceLen(h.dur)].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+      <div class="acts">${playBtn(h,"pill amber")}<button class="pill" type="button" id="shuffleHero">${I.shuffle}Surprise me</button><button class="pill" type="button" data-id="${esc(h.id)}">More about it</button></div></div>
+  </section>
+  <div class="shh"><h2>Browse by genre</h2></div>${tiles()}
+  ${GENRES.map(g=>{const list=byGenre(g.k);if(!list.length)return"";
+    return `<section style="--c:${g.h[0]}"><div class="shh"><h2>${EQ(false)}${esc(g.n)}</h2>${list.length>per?`<button class="showall" type="button" data-g="${g.k}">Show all ${list.length}</button>`:""}</div><div class="cards">${list.slice(0,per).map(card).join("")}</div></section>`}).join("")}`}
+function genreHTML(k){const g=G[k],list=byGenre(k);$("view").style.setProperty("--hc",g.h[0]);
+  return `<section class="phead"><div class="pcov" style="--h0:${g.h[0]};--h1:${g.h[1]}">${vinyl("#f6f4f1","",false)}<span class="pcname">${esc(g.s)}</span></div>
+    <div><div class="kick">Genre</div><h1>${esc(g.n)}</h1><p class="psub">${list.length} shows · about ${hours(list)} hours · all in 4K</p></div></section>
+  <div class="pact"><button class="shuf" type="button" data-shuffle="${k}"><span class="bigc">${I.shuffle}</span>Pick one for me</button></div>${trackList(list)}`}
+function watchedHTML(){const list=sorted(rows.filter(r=>seen.has(r.id)));$("view").style.setProperty("--hc","#ffb547");
+  return `<section class="phead"><div class="pcov" style="--h0:#d98a14;--h1:#5b21b6">${vinyl("#f6f4f1","",false)}<span class="pcname">Watched</span></div>
+    <div><div class="kick">Your list</div><h1>Watched</h1><p class="psub">${list.length?`${list.length} show${list.length===1?"":"s"} you've played on this device`:"Shows you play will appear here."}</p></div></section>
+  ${list.length?trackList(list):`<div class="empty"><b>Nothing here yet</b><span>Tap any show and press Play. It will be saved here so you can find it again.</span><button class="pill amber" type="button" data-go="home">Find a show</button></div>`}`}
+const matches=r=>{const t=term.trim().toLowerCase();return [r.artist,r.title,r.venue,r.year,G[r.genre]?.n].join(" ").toLowerCase().includes(t)};
+function renderSearch(){const v=$("view");
+  if(v.dataset.v!=="search"||!$("results")){v.style.removeProperty("--hc");
+    v.innerHTML=`<h1 class="pageh">Search</h1><label class="msearch" for="q2"><span class="vh">Search concerts</span>${I.search}<input id="q2" class="qinput" type="search" placeholder="A band, a song, a city…" autocomplete="off" value="${esc(term)}"></label><div id="results"></div>`}
+  updateResults()}
+function updateResults(){const box=$("results");if(!box)return;const t=term.trim();
+  if(!t){box.innerHTML=`<div class="shh"><h2>Browse all</h2></div>${tiles()}`;return}
+  const list=sorted(rows.filter(matches));
+  box.innerHTML=`<div class="shh"><h2>${list.length?`${list.length} result${list.length===1?"":"s"} for “${esc(t)}”`:`Nothing found for “${esc(t)}”`}</h2></div>`+(list.length?trackList(list):`<div class="empty"><b>No shows match that</b><span>Check the spelling, or try just the band's name.</span></div>`)}
+function render(){
+  buildSide();const v=$("view");
+  if(!rows.length){v.className="pad";v.dataset.v="";v.innerHTML=db===false?`<div class="empty"><b>Sign in to enter the hall</b><span>The lineup is shared with family signed in to claude.ai.</span></div>`:`<div class="loading">${EQ(true)}Opening the doors…</div>`;markCurrent();return}
+  if(view==="genre"&&!G[genre])view="home";
+  v.className="pad v-"+view;
+  if(view==="search")renderSearch();else v.innerHTML=view==="genre"?genreHTML(genre):view==="watched"?watchedHTML():homeHTML();
+  v.dataset.v=view;markCurrent();updateNowbar()}
+function go(v,g){view=v;genre=g||null;render();window.scrollTo(0,0);
+  if(v==="search"){const i=$("q2");if(i&&getComputedStyle(i.parentElement).display!=="none")i.focus();else $("q").focus()}}
+
+/* now playing */
+function updateNowbar(){const r=last&&rows.find(x=>x.id===last),nb=$("nowbar");
+  if(!r){nb.hidden=true;document.documentElement.classList.remove("hasnow");return}
+  nb.hidden=false;document.documentElement.classList.add("hasnow");nb.style.setProperty("--c",(G[r.genre]||G.rock).h[0]);
+  nb.innerHTML=`<button class="nb-main" type="button" data-id="${esc(r.id)}"><span class="nbthumb">${art(r,"sm")}</span><span class="nbtxt"><small>${nowLive?"Now playing":"Last played"}</small><b>${esc(r.artist)}</b><span>${esc(r.title)}</span></span></button>${EQ(nowLive)}${STATIC?`<button class="nbplay" type="button" data-playnow="${esc(r.id)}">${I.play}<span>Play</span></button>`:`<a class="nbplay" href="${esc(ytUrl(r))}" target="_blank" rel="noopener" data-watch="${esc(r.id)}">${I.play}<span>Play</span></a>`}`}
+function markPlayed(id,live){seen.add(id);ls.set("mch.seen",[...seen]);last=id;ls.set("mch.last",id);nowLive=!!live;
+  const p=document.querySelector("#watch [data-seen]");if(p){p.classList.add("on");p.textContent="✓ Watched"}updateNowbar()}
+
+/* watch page */
+const fact=(k,v)=>v?`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`:"";
+function watchHTML(r){const g=G[r.genre]||G.rock,s=srcOf(r),canDel=!STATIC&&(isOwner||(myId&&r.addedBy===myId));
+  const list=byGenre(r.genre),idx=list.findIndex(x=>x.id===r.id),next=[];
+  for(let i=1;i<list.length&&next.length<6;i++)next.push(list[(idx+i)%list.length]);
+  for(const x of sorted(rows))if(next.length<6&&x.id!==r.id&&!next.includes(x))next.push(x);
+  const big=STATIC?`<button class="bigp" type="button" data-embed="${esc(r.id)}" aria-label="Play ${esc(r.artist)}">${I.play}</button><span class="pcap">Tap to play</span>`
+    :`<a class="bigp" href="${esc(ytUrl(r))}" target="_blank" rel="noopener" data-watch="${esc(r.id)}" aria-label="Play ${esc(r.artist)} on YouTube">${I.play}</a><span class="pcap">Plays on YouTube in 4K</span>`;
+  return `<div class="wtop pad"><button class="back" type="button" data-closewatch>${I.back}Back</button><span class="logo">${EQ(nowLive)}<span class="hide-m">Mills Concert Hall</span></span></div>
+  <div class="wgrid pad"><div>
+    <div class="pbox">${art(r,"lg")}${big}</div>
+    <div class="wtitle"><h1>${esc(r.artist)}</h1><p>${esc(r.title)}</p></div>
+    <div class="chips"><span class="chip k">4K</span><button class="chip" type="button" data-g="${g.k}">${esc(g.n)}</button><span class="chip ${s}">${esc(SRC[s])}</span>${r.dur?`<span class="chip">${esc(niceLen(r.dur))}</span>`:""}</div>
+    <div class="wact">${STATIC?`<button class="pill amber" type="button" data-embed="${esc(r.id)}">${I.play}Play here</button><a class="pill" href="${esc(ytUrl(r))}" target="_blank" rel="noopener" data-watch="${esc(r.id)}">${I.tv}Open in YouTube for the TV</a>`:`<a class="pill amber" href="${esc(ytUrl(r))}" target="_blank" rel="noopener" data-watch="${esc(r.id)}">${I.play}Play in 4K</a>`}
+      <button class="pill${seen.has(r.id)?" on":""}" type="button" data-seen="${esc(r.id)}">${seen.has(r.id)?"✓ Watched":"Mark as watched"}</button>
+      <button class="pill" type="button" data-copy="${esc(r.id)}">${I.link}Copy link</button></div>
+    <div class="desc"><h2>About this show</h2>${r.note?`<p>${esc(r.note)}</p>`:""}
+      <dl class="facts">${fact("Where",r.venue)}${fact("Year",r.year)}${fact("Length",niceLen(r.dur))}${fact("Filmed by",SRC_WHO[s])}</dl>
+      <p class="muted">${esc(SRC_LONG[s])}</p></div>
+    ${STATIC?`<div class="lbl">Scenes from the show</div><div class="stills">${[1,2,3].map(n=>`<img src="${yimg(r,"hq"+n)}" alt="Scene ${n} from ${esc(r.artist)}" loading="lazy">`).join("")}</div>`:""}
+    <div class="tip"><span><b>Looks blurry?</b> In YouTube, tap the gear ⚙ and choose <b>2160p</b>. It can take a few seconds to sharpen.</span></div>
+    ${canDel?`<button class="lnk" type="button" data-del="${esc(r.id)}">Remove from the hall</button>`:""}
+  </div>
+  <aside class="upnext" aria-label="Up next"><h2>Up next</h2>${next.map(x=>`<button class="unrow" type="button" data-id="${esc(x.id)}"><span class="unthumb">${art(x,"sm")}${x.dur?`<span class="dur">${esc(x.dur)}</span>`:""}</span><span><b>${esc(x.artist)}</b><small>${esc(x.title)}</small><small>${esc(SRC[srcOf(x)])}</small></span></button>`).join("")}</aside></div>`}
+function openWatch(id,auto){const r=rows.find(x=>x.id===id);if(!r)return;const w=$("watch");
+  if(w.hidden)lastFocus=document.activeElement;armDel=false;nowLive=false;
+  w.innerHTML=watchHTML(r);w.hidden=false;document.body.style.overflow="hidden";w.scrollTop=0;
+  if(auto&&STATIC)embed(id);else w.querySelector(".back").focus({preventScroll:true})}
+function embed(id){const r=rows.find(x=>x.id===id),pb=document.querySelector("#watch .pbox");if(!r||!pb)return;
+  pb.innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.vid)}?autoplay=1&rel=0&playsinline=1" title="${esc(r.artist+": "+r.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  markPlayed(id,true);const e=document.querySelector("#watch .wtop .eq");if(e)e.classList.add("live")}
+function closeWatch(skip){const w=$("watch");if(w.hidden)return;w.hidden=true;w.innerHTML="";document.body.style.overflow="";nowLive=false;
+  if(!skip){render();if(lastFocus&&document.contains(lastFocus))lastFocus.focus();}}
+
+/* sheets */
+function openSheet(html,label){$("scrim").innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}"><button class="close" type="button" data-close>✕ Close</button>${html}</div>`;$("scrim").hidden=false;setTimeout(()=>$("scrim").querySelector(".close")?.focus(),30)}
+function closeSheet(){$("scrim").hidden=true;$("scrim").innerHTML=""}
+function helpSheet(){openSheet(`<div class="sheet-in"><h3>How to watch on the TV</h3>
+  <ol class="steps">
+    <li><div><b>Pick a show</b><span>Tap any picture, then the gold <b>Play</b> button.</span></div></li>
+    <li><div><b>Send it to the TV</b><span>In YouTube, tap the cast button (a small screen with curved lines) and choose your TV. The TV needs the YouTube app and the same Wi‑Fi.</span></div></li>
+    <li><div><b>Make it sharp</b><span>If it looks soft, tap the gear ⚙ and choose <b>2160p</b>. 4K needs fast internet.</span></div></li>
+    <li><div><b>Turn it up</b><span>Use the TV remote for volume. A soundbar makes a big difference for concerts.</span></div></li>
+  </ol>
+
+  <div class="tip" style="margin:0"><span><b>Official film</b> means the band or venue made it. <b>Filmed by a fan</b> means it was shot from the crowd.</span><span><b>Watched:</b> shows you play get a gold line under the picture and are saved in the Watched list.</span></div></div>`,"How to watch")}
+function addSheet(){openSheet(`<div class="sheet-in"><h3>Add a 4K concert</h3>
+  <p style="color:var(--muted)">Find the concert on YouTube, tap <b>Share</b>, then <b>Copy link</b>, and paste it below.</p>
+  <form id="addForm" autocomplete="off" novalidate>
+    <label for="aLink">YouTube link<input id="aLink" type="url" inputmode="url" placeholder="Paste the link here"></label>
+    <div class="two">
+      <label for="aArtist">Band or artist<input id="aArtist" type="text" maxlength="60"></label>
+      <label for="aTitle">Name of the show<small>For example, “Live at Red Rocks”</small><input id="aTitle" type="text" maxlength="120"></label>
+      <label for="aVenue">Where it was played<small>Optional</small><input id="aVenue" type="text" maxlength="80"></label>
+      <label for="aYear">Year<small>Optional</small><input id="aYear" type="text" inputmode="numeric" maxlength="4"></label>
+    </div>
+    <label for="aGenre">Genre<select id="aGenre">${GENRES.map(g=>`<option value="${g.k}">${esc(g.n)}</option>`).join("")}</select></label>
+    <fieldset><legend>Who filmed it?</legend>
+      <label class="radio" for="sOff"><input type="radio" name="src" id="sOff" value="official" checked> The band or venue (official)</label>
+      <label class="radio" for="sFan"><input type="radio" name="src" id="sFan" value="fan"> A fan in the crowd</label>
+      <label class="radio" for="sRes"><input type="radio" name="src" id="sRes" value="restored"> An older show restored to 4K</label></fieldset>
+    <label class="check" for="a4k"><input id="a4k" type="checkbox"> I checked the gear ⚙ menu on YouTube and it offers 2160p (4K)</label>
+    <button class="pill amber" type="submit">Add to the hall</button>
+    <div class="status" id="aStatus" role="status"></div>
+  </form></div>`,"Add a concert")}
+function vidFrom(s){s=String(s||"").trim();const m=s.match(/(?:youtu\.be\/|[?&]v=|\/live\/|\/shorts\/|\/embed\/)([A-Za-z0-9_-]{11})/);return m?m[1]:(/^[A-Za-z0-9_-]{11}$/.test(s)?s:null)}
+
+/* events */
+document.addEventListener("click",async e=>{const t=e.target,q=s=>t.closest(s);let el;
+  if(el=q("[data-watch]")){markPlayed(el.dataset.watch,false);return}
+  if(el=q("[data-playnow]")){openWatch(el.dataset.playnow,true);return}
+  if(el=q("[data-embed]")){embed(el.dataset.embed);return}
+  if(q("[data-closewatch]")){closeWatch();return}
+  if(el=q("[data-seen]")){const id=el.dataset.seen;seen.has(id)?seen.delete(id):seen.add(id);ls.set("mch.seen",[...seen]);el.classList.toggle("on",seen.has(id));el.textContent=seen.has(id)?"✓ Watched":"Mark as watched";return}
+  if(el=q("[data-copy]")){const r=rows.find(x=>x.id===el.dataset.copy);const u=ytUrl(r);try{await navigator.clipboard.writeText(u);toast("Link copied. Paste it in a text or email.")}catch{toast("Here's the link: "+u)}return}
+  if(el=q("[data-del]")){if(!armDel){armDel=true;el.textContent="Are you sure? Tap again to remove";el.classList.add("warn");return}
+    try{await db.doc("concerts/"+el.dataset.del).delete();closeWatch();toast("Removed")}catch{el.textContent="Couldn't remove it. Only the person who added it can."}return}
+  if(el=q("[data-shuffle]")){const k=el.dataset.shuffle,pool=k==="all"?rows:byGenre(k);if(pool.length)openWatch(pool[Math.floor(Math.random()*pool.length)].id);return}
+  if(q("#shuffleHero")&&rows.length>1){const pool=rows.filter(r=>r.id!==heroId);heroId=pool[Math.floor(Math.random()*pool.length)].id;render();document.querySelector(".feature")?.scrollIntoView({block:"nearest",behavior:"smooth"});return}
+  if(el=q("[data-g]")){closeWatch(true);go("genre",el.dataset.g);return}
+  if(el=q("[data-go]")){closeWatch(true);go(el.dataset.go);return}
+  if(el=q("[data-id]")){openWatch(el.dataset.id);return}
+  if(q("[data-help]")){helpSheet();return}
+  if(q("[data-add]")){addSheet();return}
+  if(q("[data-close]")||t===$("scrim")){closeSheet();return}
+});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;if(!$("scrim").hidden)closeSheet();else if(!$("watch").hidden)closeWatch()});
+document.addEventListener("input",e=>{if(!e.target.classList?.contains("qinput"))return;term=e.target.value;document.querySelectorAll(".qinput").forEach(i=>{if(i!==e.target)i.value=term});
+  if(view!=="search"){view="search";genre=null;render();e.target.focus()}else updateResults()});
+let rt,lastCols=cols();addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{const c=cols();if(c!==lastCols){lastCols=c;if(view==="home")render()}},150)});
+document.addEventListener("submit",async e=>{if(e.target.id!=="addForm")return;e.preventDefault();
+  const st=$("aStatus");st.className="status err";
+  if(!db){st.textContent="Sign in to claude.ai to add concerts.";return}
+  const vid=vidFrom($("aLink").value);
+  if(!vid){st.textContent="That link doesn't look right. In YouTube, tap Share, then Copy link, and paste it again.";$("aLink").focus();return}
+  if(rows.some(r=>r.vid===vid)){st.textContent="Good news: that show is already in the hall.";return}
+  const artist=$("aArtist").value.trim(),title=$("aTitle").value.trim();
+  if(!artist){st.textContent="Please type the band or artist.";$("aArtist").focus();return}
+  if(!title){st.textContent="Please give the show a name.";$("aTitle").focus();return}
+  const year=$("aYear").value.trim();if(year&&!/^\d{4}$/.test(year)){st.textContent="The year needs four numbers, like 1994.";$("aYear").focus();return}
+  if(!$("a4k").checked){st.textContent="This hall is 4K only. Check YouTube's gear ⚙ menu shows 2160p, then tick the box.";return}
+  st.className="status";st.textContent="Adding…";
+  try{await db.doc("concerts/"+vid).set({vid,artist,title,venue:$("aVenue").value.trim(),year,genre:$("aGenre").value,dur:"",src:document.querySelector('input[name="src"]:checked').value,note:"",addedBy:myId||"",addedAt:Date.now(),order:Date.now()});
+    closeSheet();toast("Added "+artist+" to the hall")}
+  catch(err){st.className="status err";st.textContent=err&&err.code==="permission_denied"?"You can watch but not add. Ask Brandon to give you edit access.":"Couldn't add it. Check your internet and try again."}});
+
+(async()=>{
+  if(STATIC){rows=CATALOG.map(r=>({id:r.vid,...r}));render();return}
+  render();
+  if(!window.claude?.use){db=false;render();return}
+  const timer=setTimeout(()=>{if(!rows.length)$("view").innerHTML=`<div class="empty"><b>Can't reach the hall</b><span>Check your internet, then refresh the page.</span></div>`},10000);
+  [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+  if(user){try{myId=await user.id();isOwner=await user.isOwner()}catch{}}
+  if(!db){clearTimeout(timer);db=false;render();return}
+  db.collection("concerts").onSnapshot(snap=>{clearTimeout(timer);rows=snap.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.vid);if($("watch").hidden)render();else{buildSide();updateNowbar()}},
+    ()=>{clearTimeout(timer);$("view").innerHTML=`<div class="empty"><b>Can't reach the hall</b><span>Refresh the page to try again.</span></div>`});
+})();
+</script>
+</body></html>
